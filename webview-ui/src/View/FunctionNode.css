@@ -1,0 +1,132 @@
+.react-flow__edge {
+    stroke: #fff;
+}
+
+.parameter-pin {
+    display: flex;
+    padding: 2px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    font-size: 1ch;
+    /* background-color: plum; */
+}
+
+.parameter-pin .react-flow__handle {
+    border: 0;
+    border-radius: 0;
+    position: relative;
+    top: 50%;
+    left: -8px;
+    background-color: orange;
+}
+
+.parameter-pin__text {
+    /* background-color: salmon; */
+}
+
+.return-value-pin {
+    display: flex;
+    padding: 2px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    font-size: 1ch;
+    /* background-color: plum; */
+}
+
+.return-value-pin .react-flow__handle {
+    border: 0;
+    border-radius: 0;
+    position: relative;
+    top: 50%;
+    right: -8px;
+    background-color: green;
+}
+
+.return-value-pin__text {
+    /* background-color: green; */
+}
+
+.function-node {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    background-color: grey;
+    font-family: monospace;
+}
+
+.function-node__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    height: fit-content;
+    padding: 2px;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+    background-color: silver;
+
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari, Chrome, Opera, Samsung */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Edge, IE */
+    user-select: none; /* Modern browsers */
+}
+
+.function-node__header__name {
+    padding-left: 1px;
+    border: none;
+    outline: none;
+    font-size: 1ch;
+    font-weight: bold;
+    background-color: inherit;
+}
+
+.function-node__header__name:focus {
+    background-color: silver;
+    pointer-events: auto;
+}
+
+.function-node__header__description {
+    padding-left: 1px;
+    font-size: 1ch;
+    color: black;
+    /* font-weight: lighter; */
+    /* background-color: yellow; */
+}
+
+.function-node__body {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    height: 80%;
+    padding: 2px;
+    color: white;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+}
+
+.function-node__body__parameters {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    width: 50%;
+    /* background-color: blue; */
+}
+
+.function-node__body__return_values {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    width: 50%;
+    /* background-color: blue; */
+}
+
+.function-node__body__separator {
+    width: 10px;
+    /* background-color: blue; */
+}
