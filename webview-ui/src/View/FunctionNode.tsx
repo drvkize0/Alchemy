@@ -4,7 +4,7 @@ import { NodeProps, Handle, Position } from 'reactflow';
 import { vscode } from '../utilities/vscode';
 
 import { ParameterData, ReturnValueData, FunctionNodeData } from '../Data/FunctionNodeData'
-import { useStore } from '../Data/GraphData'
+import { useStore } from '../Data/GraphEditorData'
 import './FunctionNode.css';
 
 const ParameterPin: FunctionComponent<ParameterData> = ({ name, type, value }) => {

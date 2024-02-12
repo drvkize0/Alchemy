@@ -1,3 +1,4 @@
+import { resolve } from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -5,13 +6,25 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: "build",
     rollupOptions: {
-      output: {
-        entryFileNames: `assets/[name].js`,
-        chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`,
+      input: {
+        graph_editor: resolve(__dirname, './index_graph_editor.html'),
+        node_template_view: resolve(__dirname, './index_node_template_view.html')
       },
-    },
+      output: [
+        {
+            entryFileNames: `assets/[name].js`,
+            chunkFileNames: `assets/[name].js`,
+            assetFileNames: `assets/[name].[ext]`,
+            dir: "dist_graph_editor",
+        },
+        {
+            entryFileNames: `assets/[name].js`,
+            chunkFileNames: `assets/[name].js`,
+            assetFileNames: `assets/[name].[ext]`,
+            dir: "dist_node_template_view",
+        },
+      ]
+    }
   },
 });

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NodeTemplateDropProvider = exports.GraphEditorProvider = void 0;
+exports.GraphEditorProvider = void 0;
 const vscode = require("vscode");
 const getUri_1 = require("../utilities/getUri");
 const getNonce_1 = require("../utilities/getNonce");
@@ -23,8 +23,8 @@ class GraphEditorProvider {
         context.subscriptions.push(vscode.commands.registerCommand("alchemy.create_new_graph", () => { GraphEditorProvider.createNewGraph(); }));
     }
     getWebviewContent(webview) {
-        const stylesUri = (0, getUri_1.getUri)(webview, this.extensionUri, ["webview-ui", "build", "assets", "index.css"]);
-        const scriptUri = (0, getUri_1.getUri)(webview, this.extensionUri, ["webview-ui", "build", "assets", "index.js"]);
+        const stylesUri = (0, getUri_1.getUri)(webview, this.extensionUri, ["webview-ui", "dist_graph_editor", "assets", "graph_editor.css"]);
+        const scriptUri = (0, getUri_1.getUri)(webview, this.extensionUri, ["webview-ui", "dist_graph_editor", "assets", "graph_editor.js"]);
         const nonce = (0, getNonce_1.getNonce)();
         return /*html*/ `
             <!DOCTYPE html>
@@ -36,7 +36,7 @@ class GraphEditorProvider {
                     <link rel="stylesheet" type="text/css" href="${stylesUri}">
                 </head>
                 <body>
-                    <div id="root"></div>
+                    <div id="graph_editor"></div>
                     <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
                 </body>
             </html>
@@ -110,25 +110,4 @@ class GraphEditorProvider {
 exports.GraphEditorProvider = GraphEditorProvider;
 GraphEditorProvider.viewType = "alchemy.graph_editor";
 GraphEditorProvider.newFileId = 1;
-class NodeTemplateDropProvider {
-    static register(context) {
-        const selector = { pattern: "**/*.acgraph" };
-        context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider(selector, new NodeTemplateDropProvider()));
-    }
-    provideDocumentDropEdits(document, position, dataTransfer, token) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const dataTransferItem = dataTransfer.get('text/uri-list');
-            if (!dataTransferItem) {
-                return undefined;
-            }
-            const text = yield dataTransferItem.asString();
-            if (token.isCancellationRequested) {
-                return undefined;
-            }
-            console.debug("create dropedit: " + text);
-            return new vscode.DocumentDropEdit(text);
-        });
-    }
-}
-exports.NodeTemplateDropProvider = NodeTemplateDropProvider;
 //# sourceMappingURL=GraphEditor.js.map

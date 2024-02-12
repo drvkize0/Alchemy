@@ -14,7 +14,7 @@
             "displayName": "Alchemy Graph Editor",
             "selector": [
                 {
-                    "filenamePattern": "*.acgraph"
+                    "filenamePattern": "*.acg"
                 }
             ]
         }
@@ -22,8 +22,9 @@
         "views": {
             "explorer": [
                 {
-                    "id": "testViewDragAndDrop",
-                    "name": "Test View Drag and Drop"
+                    "type": "webview",
+                    "id": "alchemy.node_template_view",
+                    "name": "Alchemy Node Template View"
                 }
             ]
         },
@@ -31,6 +32,11 @@
             {
                 "command": "alchemy.create_new_graph",
                 "title": "Create New Graph",
+                "category": "Alchemy"
+            },
+            {
+                "command": "alchemy.update_node_templates",
+                "title": "Update Node Templates",
                 "category": "Alchemy"
             }
         ]

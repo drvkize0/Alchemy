@@ -26,7 +26,7 @@ export enum ThemeMode {
     Dark
 };
 
-export type GraphData = {
+export type GraphEditorData = {
     themeMode: ThemeMode;
     nodes: Node[];
     edges: Edge[];
@@ -59,7 +59,7 @@ const makeEdgeFromConnection = (connection: Connection): Edge => {
     }
 }
 
-const useStore = create<GraphData>((set, get) => ({
+const useStore = create<GraphEditorData>((set, get) => ({
 
     themeMode: ThemeMode.Light,
     nodes: [],
@@ -99,6 +99,10 @@ const useStore = create<GraphData>((set, get) => ({
 
     updateGraph: (graphJson: string) => {
         const graphData = JSON.parse( graphJson );
+        
+        if( typeof graphData !== 'object' )
+            return;
+
         set({
             nodes: graphData.nodes,
             edges: graphData.edges,

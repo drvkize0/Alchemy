@@ -1,6 +1,6 @@
 import { commands, ExtensionContext } from "vscode";
-import { GraphEditorProvider, NodeTemplateDropProvider } from "./panels/GraphEditor";
-import { TestViewDragAndDrop } from "./panels/testViewDragAndDrop";
+import { GraphEditorProvider } from "./panels/GraphEditor";
+import { NodeTemplateView } from "./panels/NodeTemplateView";
 
 export function activate(context: ExtensionContext) {
     
@@ -11,6 +11,5 @@ export function activate(context: ExtensionContext) {
     // context.subscriptions.push(cmdCreateOrShowGraphEditor);
 
     GraphEditorProvider.register( context );
-    NodeTemplateDropProvider.register( context );
-    new TestViewDragAndDrop(context);
+    NodeTemplateView.register( context );
 }

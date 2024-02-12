@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
-import { nodes as initialNodes, edges as initialEdges } from "./test_nodes_edges";
 
 export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
 
@@ -20,8 +19,8 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
 
     private getWebviewContent( webview: vscode.Webview ) {
 
-        const stylesUri = getUri(webview, this.extensionUri, ["webview-ui", "build", "assets", "index.css"]);
-        const scriptUri = getUri(webview, this.extensionUri, ["webview-ui", "build", "assets", "index.js"]);
+        const stylesUri = getUri(webview, this.extensionUri, ["webview-ui", "dist_graph_editor", "assets", "graph_editor.css"]);
+        const scriptUri = getUri(webview, this.extensionUri, ["webview-ui", "dist_graph_editor", "assets", "graph_editor.js"]);
         const nonce = getNonce();
     
         return /*html*/ `
@@ -34,7 +33,7 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
                     <link rel="stylesheet" type="text/css" href="${stylesUri}">
                 </head>
                 <body>
-                    <div id="root"></div>
+                    <div id="graph_editor"></div>
                     <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
                 </body>
             </html>
@@ -110,7 +109,6 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
     }
 
     static newFileId = 1;
-
     public static createNewGraph() {
 
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -130,33 +128,5 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
             templateUri,
             "default"
         );
-    }
-}
-
-export class NodeTemplateDropProvider implements vscode.DocumentDropEditProvider {
-
-    public static register( context: vscode.ExtensionContext ) {
-        const selector: vscode.DocumentFilter = { pattern: "**/*.acgraph" };
-        context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider(selector, new NodeTemplateDropProvider()));
-    }
-
-    async provideDocumentDropEdits(
-        document: vscode.TextDocument,
-        position: vscode.Position,
-        dataTransfer: vscode.DataTransfer,
-        token: vscode.CancellationToken
-    ): Promise<vscode.DocumentDropEdit | undefined> {
-        const dataTransferItem = dataTransfer.get('text/uri-list');
-        if( !dataTransferItem ) {
-            return undefined;
-        }
-
-        const text = await dataTransferItem.asString();
-        if(token.isCancellationRequested) {
-            return undefined;
-        }
-
-        console.debug("create dropedit: " + text );
-        return new vscode.DocumentDropEdit( text );
     }
 }

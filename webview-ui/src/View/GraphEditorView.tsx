@@ -15,10 +15,13 @@ import {
     OnSelectionChangeParams,
 } from 'reactflow';
 
-import { ThemeMode, GraphData, useStore } from '../Data/GraphData';
+import { ThemeMode, GraphEditorData, useStore } from '../Data/GraphEditorData';
 import { FunctionNode } from './FunctionNode';
 
-const selector = (data: GraphData) => ({
+import 'reactflow/dist/style.css';
+import './GraphEditorView.css';
+
+const selector = (data: GraphEditorData) => ({
     themeMode: data.themeMode,
     nodes: data.nodes,
     edges: data.edges,
@@ -39,14 +42,32 @@ const nodeTypes = {
     function: FunctionNode
 };
 
-import 'reactflow/dist/style.css';
-import './GraphView.css';
-
 export function GraphView() {
     const { themeMode, nodes, edges, selectedNodes, debug, setThemeMode, onNodesChange, onEdgesChange, onConnect, setDebug, updateGraph, setSelectedNodes, setEdgeAnimated } = useStore(selector);
     const toggleTheme = () => {
         setThemeMode( themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light );
     };
+
+    const onDidReceivedMessage = ( vscodeMessage: any ) => {
+        const command = vscodeMessage.data.command;
+        const data = vscodeMessage.data.data;
+        setDebug( command );
+
+        switch( command ) {
+            case "alchemy.update_graph":
+                updateGraph( data );
+                return;
+        }
+    }
+
+    useEffect(() => {
+        window.addEventListener( "message", onDidReceivedMessage );
+        window.addEventListener( "drop", onDidDrop );
+        return () => {
+            window.removeEventListener( "drop", onDidDrop );
+            window.removeEventListener( 'message', onDidReceivedMessage );
+        };
+    }, []);
 
     useEffect(() => {
         for( let edge of edges ) {
@@ -73,32 +94,11 @@ export function GraphView() {
         nodes: selectedNodes.length > 0 ? selectedNodes : nodes
     }
 
-    const onDidReceivedMessage = ( vscodeMessage: any ) => {
-        const command = vscodeMessage.data.command;
-        const data = vscodeMessage.data.data;
-        setDebug( command );
-
-        switch( command ) {
-            case "alchemy.update_graph":
-                updateGraph( data );
-                return;
-        }
-    }
-
     const onDidDrop = (event: DragEvent) => {
         setDebug( JSON.stringify( event.dataTransfer ) );
     };
 
     const rectFlow = useReactFlow();
-
-    useEffect(() => {
-        window.addEventListener( "message", onDidReceivedMessage );
-        window.addEventListener( "drop", onDidDrop );
-        return () => {
-            window.addEventListener( "drop", onDidDrop );
-            window.removeEventListener( 'message', onDidReceivedMessage );
-        };
-    }, []);
 
     const graphRef = useRef<HTMLDivElement>(null);
     

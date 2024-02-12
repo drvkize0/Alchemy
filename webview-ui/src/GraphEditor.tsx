@@ -1,8 +1,8 @@
 import { ReactFlowProvider } from 'reactflow';
-import { GraphView } from  "./View/GraphView";
-import "./App.css";
+import { GraphView } from  "./View/GraphEditorView";
+import "./GraphEditor.css";
 
-function App() {
+function GraphEditor() {
     return (
         <main>
             <ReactFlowProvider>
@@ -12,4 +12,4 @@ function App() {
     );
 }
 
-export default App;
+export default GraphEditor;
