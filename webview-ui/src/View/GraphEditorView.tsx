@@ -80,21 +80,21 @@ export function GraphView() {
     } = useStore(selector);
 
     const toggleTheme = () => {
-        setThemeMode( themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light );
+        setThemeMode(themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light);
     };
 
     // message processing
-    const onDidReceivedMessage = ( vscodeMessage: any ) => {
+    const onDidReceivedMessage = (vscodeMessage: any) => {
         const command = vscodeMessage.data.command;
         const data = vscodeMessage.data.data;
-        setDebug( command );
+        setDebug(command);
 
-        switch( command ) {
+        switch (command) {
             case "alchemy.update_graph":
-                updateGraph( data );
+                updateGraph(data);
                 return;
             case "alchemy.create_node":
-                createNode( data.template, data.pos );
+                createNode(data.template, data.pos);
                 return;
         }
     }
@@ -109,78 +109,100 @@ export function GraphView() {
         vscode.setState({
             viewport: reactFlow.getViewport()
         });
-        console.debug( "viewport.zoom = " + viewport.zoom);
+        console.debug("viewport.zoom = " + viewport.zoom);
     }
 
     useEffect(() => {
-        window.addEventListener( "message", onDidReceivedMessage );
+        window.addEventListener("message", onDidReceivedMessage);
 
         const state = vscode.getState() as stateType;
-        if( state ) {
+        if (state) {
 
             vscode.postMessage({
                 command: "alchemy.query_document",
                 data: undefined
             });
 
-            setViewport( state.viewport );
+            setViewport(state.viewport);
         }
 
         return () => {
-            window.removeEventListener( 'message', onDidReceivedMessage );
+            window.removeEventListener('message', onDidReceivedMessage);
         };
     }, []);
 
     // highlight selected nodes and edges
     useEffect(() => {
-        for( let edge of edges ) {
+        for (let edge of edges) {
             let connectedToSelectedNode = false;
-            for( const selectedNode of selectedNodes ) {
-                if( edge.source == selectedNode.id || edge.target == selectedNode.id ) {
+            for (const selectedNode of selectedNodes) {
+                if (edge.source == selectedNode.id || edge.target == selectedNode.id) {
                     connectedToSelectedNode = true;
                     break;
                 }
             }
 
-            setEdgeHightlighted( edge.id, connectedToSelectedNode );
+            setEdgeHightlighted(edge.id, connectedToSelectedNode);
         }
     }, [selectedNodes]);
 
     useEffect(() => {
-        for( const selectedEdge of selectedEdges ) {
-            setEdgeHightlighted( selectedEdge.id, true );
+        for (const selectedEdge of selectedEdges) {
+            setEdgeHightlighted(selectedEdge.id, true);
         }
     }, [selectedEdges])
 
     useLayoutEffect(() => {
-        if( typeof viewport !== 'undefined' )
-        {
+        if (typeof viewport !== 'undefined')
             reactFlow.setViewport(viewport);
-            console.debug( "useEffect: viewport.zoom: " + viewport.zoom );
-        }
     }, [viewport])
 
     const onChange = useCallback((selectedChange: OnSelectionChangeParams) => {
-        setSelectedNodes( selectedChange.nodes );
-        setSelectedEdges( selectedChange.edges );
+        setSelectedNodes(selectedChange.nodes);
+        setSelectedEdges(selectedChange.edges);
     }, []);
-    
+
     useOnSelectionChange({ onChange });
 
     // drop handler for creating new node
-    const onDragOver = ( event: React.DragEvent ) => {
-        if( event.button == 0 )
-        {
+    // const getChildNodePosition = (event: MouseEvent, parentNode?: Node) => {
+    //     const { domNode } = store.getState();
+
+    //     if (
+    //         !domNode ||
+    //         // we need to check if these properites exist, because when a node is not initialized yet,
+    //         // it doesn't have a positionAbsolute nor a width or height
+    //         !parentNode?.positionAbsolute ||
+    //         !parentNode?.width ||
+    //         !parentNode?.height
+    //     ) {
+    //         return;
+    //     }
+
+    //     const panePosition = screenToFlowPosition({
+    //         x: event.clientX,
+    //         y: event.clientY,
+    //     });
+
+    //     // we are calculating with positionAbsolute here because child nodes are positioned relative to their parent
+    //     return {
+    //         x: panePosition.x - parentNode.positionAbsolute.x + parentNode.width / 2,
+    //         y: panePosition.y - parentNode.positionAbsolute.y + parentNode.height / 2,
+    //     };
+    // };
+
+    const onDragOver = (event: React.DragEvent) => {
+        if (event.button == 0) {
             event.preventDefault();
         }
     }
 
-    const onDrop = ( event: React.DragEvent ) => {
-        const nodeTemplateUri = event.dataTransfer.getData( "text/uri-list");
-        if( nodeTemplateUri.length == 0 )
+    const onDrop = (event: React.DragEvent) => {
+        const nodeTemplateUri = event.dataTransfer.getData("text/uri-list");
+        if (nodeTemplateUri.length == 0)
             return;
 
-        const pos = reactFlow.screenToFlowPosition( { x: event.screenX, y: event.screenY } );
+        const pos = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
         const message = {
             command: "alchemy.query_node_template",
@@ -190,11 +212,11 @@ export function GraphView() {
             }
         };
 
-        vscode.postMessage( message );
+        vscode.postMessage(message);
 
-        console.debug( "alchemy.query_node_template: " + nodeTemplateUri + " " + pos.x + " " + pos.y );
+        console.debug("alchemy.query_node_template: " + nodeTemplateUri + " " + pos.x + " " + pos.y);
 
-        setDebug( JSON.stringify( message, null, '\t' ) );
+        setDebug(JSON.stringify(message, null, '\t'));
     }
 
     // fitview to selected nodes or all nodes
@@ -203,10 +225,10 @@ export function GraphView() {
         duration: 200,
         nodes: selectedNodes.length > 0 ? selectedNodes : nodes
     }
-    const fitViewKeyPressed = useKeyPress( "f" );
+    const fitViewKeyPressed = useKeyPress("f");
     useEffect(() => {
-        reactFlow.fitView( fitViewOptions );    
-    },[fitViewKeyPressed])
+        reactFlow.fitView(fitViewOptions);
+    }, [fitViewKeyPressed])
 
     return (
         <ReactFlow
@@ -236,7 +258,7 @@ export function GraphView() {
             <Panel position="bottom-center">
                 {debug}
             </Panel>
-            <MiniMap zoomable pannable/>
+            <MiniMap zoomable pannable />
             <Controls fitViewOptions={fitViewOptions} />
             <Background variant={BackgroundVariant.Lines} gap={20} color="steelblue" />
         </ReactFlow>

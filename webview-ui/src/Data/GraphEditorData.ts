@@ -171,6 +171,8 @@ const useStore = create<GraphEditorData>((set, get) => ({
             position: pos,
         };
 
+        console.debug( "created node at x: " + pos.x + " y: " + pos.y );
+
         set({
             nodes: get().nodes.concat( newNode )
         });
@@ -217,7 +219,7 @@ const useStore = create<GraphEditorData>((set, get) => ({
             data: docJson
         });
 
-        console.info( "updateDocument: " + docJson );
+        console.info( "updateDocument: " );
     },
 
     setThemeMode: (themeMode: ThemeMode) => {
