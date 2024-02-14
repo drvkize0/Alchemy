@@ -13,8 +13,9 @@ import {
     useKeyPress,
     useOnSelectionChange,
     OnSelectionChangeParams,
+    SelectionMode,
 } from 'reactflow';
-
+import { vscode } from '../utilities/vscode';
 import { ThemeMode, GraphEditorData, useStore } from '../Data/GraphEditorData';
 import { FunctionNode } from './FunctionNode';
 
@@ -25,17 +26,24 @@ const selector = (data: GraphEditorData) => ({
     themeMode: data.themeMode,
     nodes: data.nodes,
     edges: data.edges,
+    viewport: data.viewport,
     selectedNodes: data.selectedNodes,
+    selectedEdges: data.selectedEdges,
     debug: data.debug,
 
-    setThemeMode: data.setThemeMode,
     onNodesChange: data.onNodesChange,
     onEdgesChange: data.onEdgesChange,
     onConnect: data.onConnect,
     setDebug: data.setDebug,
     updateGraph: data.updateGraph,
+    createNode: data.createNode,
+    updateDocument: data.updateDocument,
+
+    setThemeMode: data.setThemeMode,
+    setViewport: data.setViewport,
+    setEdgeHightlighted: data.setEdgeHightlighted,
     setSelectedNodes: data.setSelectedNodes,
-    setEdgeAnimated: data.setEdgeAnimated
+    setSelectedEdges: data.setSelectedEdges,
 });
 
 const nodeTypes = {
@@ -43,11 +51,16 @@ const nodeTypes = {
 };
 
 export function GraphView() {
-    const { themeMode, nodes, edges, selectedNodes, debug, setThemeMode, onNodesChange, onEdgesChange, onConnect, setDebug, updateGraph, setSelectedNodes, setEdgeAnimated } = useStore(selector);
+
+    const reactFlow = useReactFlow();
+
+    // graph states
+    const { themeMode, nodes, edges, selectedNodes, selectedEdges, viewport, debug, onNodesChange, onEdgesChange, onConnect, setDebug, updateGraph, createNode, updateDocument, setThemeMode, setViewport, setEdgeHightlighted, setSelectedNodes, setSelectedEdges } = useStore(selector);
     const toggleTheme = () => {
         setThemeMode( themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light );
     };
 
+    // message processing
     const onDidReceivedMessage = ( vscodeMessage: any ) => {
         const command = vscodeMessage.data.command;
         const data = vscodeMessage.data.data;
@@ -57,18 +70,20 @@ export function GraphView() {
             case "alchemy.update_graph":
                 updateGraph( data );
                 return;
+            case "alchemy.create_node":
+                createNode( data.template, data.pos );
+                return;
         }
     }
 
     useEffect(() => {
         window.addEventListener( "message", onDidReceivedMessage );
-        window.addEventListener( "drop", onDidDrop );
         return () => {
-            window.removeEventListener( "drop", onDidDrop );
             window.removeEventListener( 'message', onDidReceivedMessage );
         };
     }, []);
 
+    // highlight selected nodes and edges
     useEffect(() => {
         for( let edge of edges ) {
             let connectedToSelectedNode = false;
@@ -79,45 +94,69 @@ export function GraphView() {
                 }
             }
 
-            setEdgeAnimated( edge.id, connectedToSelectedNode );
+            setEdgeHightlighted( edge.id, connectedToSelectedNode );
         }
     }, [selectedNodes]);
 
+    useEffect(() => {
+        for( const selectedEdge of selectedEdges ) {
+            setEdgeHightlighted( selectedEdge.id, true );
+        }
+    }, [selectedEdges])
+
     const onChange = useCallback((selectedChange: OnSelectionChangeParams) => {
         setSelectedNodes( selectedChange.nodes );
+        setSelectedEdges( selectedChange.edges );
     }, []);
     
     useOnSelectionChange({ onChange });
 
+    // drop handler for creating new node
+    const onDragOver = ( event: React.DragEvent ) => {
+        if( event.button == 0 )
+        {
+            event.preventDefault();
+        }
+    }
+
+    const onDrop = ( event: React.DragEvent ) => {
+        const nodeTemplateUri = event.dataTransfer.getData( "text/uri-list");
+        if( nodeTemplateUri.length == 0 )
+            return;
+
+        const pos = reactFlow.screenToFlowPosition( { x: event.screenX, y: event.screenY } );
+
+        const message = {
+            command: "alchemy.query_node_template",
+            data: {
+                templateUri: nodeTemplateUri,
+                pos: pos
+            }
+        };
+
+        vscode.postMessage( message );
+
+        console.debug( "alchemy.query_node_template: " + nodeTemplateUri + " " + pos.x + " " + pos.y );
+
+        setDebug( JSON.stringify( message, null, '\t' ) );
+    }
+
+    // update viewport from document
+    useEffect(() => {
+        if( typeof viewport !== 'undefined' )
+            reactFlow.setViewport( viewport );
+    }, [viewport]);
+
+    // fitview to selected nodes or all nodes
+    // hotkey: F
     const fitViewOptions: FitViewOptions = {
         duration: 200,
         nodes: selectedNodes.length > 0 ? selectedNodes : nodes
     }
-
-    const onDidDrop = (event: DragEvent) => {
-        setDebug( JSON.stringify( event.dataTransfer ) );
-    };
-
-    const rectFlow = useReactFlow();
-
-    const graphRef = useRef<HTMLDivElement>(null);
-    
-    const onDragOver = ( event: DragEvent ) => {
-        setDebug( "onDragOver: " + JSON.stringify(event ) );
-        event.preventDefault();
-    }
-
-    const onDrop = ( event: DragEvent ) => {
-        setDebug( "onDrop: " + JSON.stringify(event ) );
-    }
-
+    const fitViewKeyPressed = useKeyPress( "f" );
     useEffect(() => {
-        if(graphRef.current) {
-            graphRef.current.ondragover = onDragOver;
-            graphRef.current.ondrop = onDidDrop;
-            setDebug( "useEffect: drag&drop" );
-        }
-    }, []);
+        reactFlow.fitView( fitViewOptions );    
+    },[fitViewKeyPressed])
 
     return (
         <ReactFlow
@@ -126,23 +165,30 @@ export function GraphView() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onNodesDelete={updateDocument}
+            onNodeDragStop={updateDocument}
             onConnect={onConnect}
+            onEdgesDelete={updateDocument}
+
             snapToGrid={true}
-            snapGrid={[20,20]}
+            snapGrid={[20, 20]}
             panOnDrag={[2]}
             selectionOnDrag={true}
+            selectionMode={SelectionMode.Full}
             zoomOnDoubleClick={true}
-            connectionRadius={15}
+            connectionRadius={16}
             deleteKeyCode="Delete"
             fitView
-            ref={graphRef}
+
+            onDrop={onDrop}
+            onDragOver={onDragOver}
         >
             <Panel position="bottom-center">
                 {debug}
             </Panel>
             <MiniMap zoomable pannable/>
             <Controls fitViewOptions={fitViewOptions} />
-            <Background variant={BackgroundVariant.Lines} gap={20} color="slategray" />
+            <Background variant={BackgroundVariant.Lines} gap={20} color="steelblue" />
         </ReactFlow>
     );
 }

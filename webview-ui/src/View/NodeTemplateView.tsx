@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { vscode } from "../utilities/vscode";
 import { NodeTemplateViewData, useStore } from "../Data/NodeTemplateViewData";
-import { VSCodeDataGrid, VSCodeDataGridRow, VSCodePanelView } from "@vscode/webview-ui-toolkit/react";
+import { VSCodeDataGrid, VSCodeDataGridCell, VSCodeDataGridRow, VSCodePanelView } from "@vscode/webview-ui-toolkit/react";
+import { Uri } from "vscode";
 
 const selector = (data: NodeTemplateViewData) => ({
     nodeTemplates: data.nodeTemplates,
@@ -36,20 +37,30 @@ export function NodeTemplateView() {
     }, []);
 
     return (
-        <VSCodePanelView>
-            <VSCodeDataGrid>
+        <div>
             {
                 nodeTemplates.map((name) => {
-                    return <VSCodeDataGridRow style={{
-                        msUserSelect: "none",
-                        MozUserSelect: "none",
-                        KhtmlUserSelect: "none",
-                        WebkitUserSelect: "none",
-                        userSelect: "none",
-                    }}>{name}</VSCodeDataGridRow>;
+                    return (
+                        <VSCodeDataGrid>
+                            <VSCodeDataGridRow
+                                draggable={true}
+                                onDragStart={(event: React.DragEvent) => {
+                                    event.dataTransfer.setData('text/uri-list', "file://alchemy" + name);
+                                }}
+                                style={{display: "flex", flexDirection: "row", alignItems: "flex-start", width: "90%"}}
+                                >
+
+                                <VSCodeDataGridCell
+                                    style={{width: "100%"}}
+                                >
+                                    {name}
+                                </VSCodeDataGridCell>
+
+                            </VSCodeDataGridRow>
+                        </VSCodeDataGrid>
+                    )
                 })
             }
-            </VSCodeDataGrid>
-        </VSCodePanelView>
+        </div>
     );
 }

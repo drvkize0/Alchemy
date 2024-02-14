@@ -62,6 +62,5 @@ export const edges: Edge[] = [
         sourceHandle: 'sum',
         target: '2',
         targetHandle: 'a',
-        animated: true
     }
 ];

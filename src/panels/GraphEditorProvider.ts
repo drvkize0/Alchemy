@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
+import { promises as fsPromises } from "fs";
+
 
 export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
 
@@ -61,11 +63,11 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
 
         webviewPanel.webview.html = this.getWebviewContent( webviewPanel.webview );
 
-        this.bindWebviewMessageListener( webviewPanel.webview );
+        this.bindWebviewMessageListener( webviewPanel.webview, document );
 
         this.disposables.push( vscode.workspace.onDidChangeTextDocument(e => {
-            console.debug("onDidChangeTextDocument");
 			if (e.document.uri.toString() === document.uri.toString()) {
+                console.debug("onDidChangeTextDocument updateGraph");
 				this.updateGraph( webviewPanel, document );
 			}
 		}));
@@ -73,39 +75,6 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         webviewPanel.onDidDispose(() => this.dispose(), null, this.disposables);
 
         this.updateGraph( webviewPanel, document );
-    }
-
-    public updateGraph( webviewPanel: vscode.WebviewPanel, document: vscode.TextDocument ) {
-        const msg = {
-            command: "alchemy.update_graph",
-            data: document.getText(),
-        };
-        webviewPanel.webview.postMessage(msg);
-
-        vscode.window.showInformationMessage("updateGraph: " + document.getText());
-    }
-
-    private bindWebviewMessageListener(webview: vscode.Webview) {
-        webview.onDidReceiveMessage(
-            (message: any) => {
-                const command = message.command;
-                const data = message.data;
-    
-                switch (command) {
-                    case "alchemy.open_node_template":
-                        {
-                            if( typeof data === 'string' ) {
-                                this.openNodeTemplate(data);
-                            } else {
-                                vscode.window.showErrorMessage( "Alchemy: Invalid command: " + typeof message + typeof data );
-                            }
-                        }
-                        return;
-                }
-            },
-            undefined,
-            this.disposables
-        );
     }
 
     static newFileId = 1;
@@ -117,16 +86,92 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
             return;
         }
 
-        const uri = vscode.Uri.joinPath( workspaceFolders[0].uri, `UntitledGraph-${GraphEditorProvider.newFileId++}`)
+        const uri = vscode.Uri.joinPath( workspaceFolders[0].uri, `UntitledGraph-${GraphEditorProvider.newFileId++}` + ".acg" )
         .with({ scheme: 'untitled' });
         vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
     }
 
-    private openNodeTemplate( templateUri: string ) {
+    public updateGraph( webviewPanel: vscode.WebviewPanel, document: vscode.TextDocument ) {
+        const msg = {
+            command: "alchemy.update_graph",
+            data: document.getText(),
+        };
+        webviewPanel.webview.postMessage(msg);
+    }
+
+    private onOpenNodeTemplate( templateUri: vscode.Uri ) {
+
         vscode.commands.executeCommand(
             "vscode.openWith",
             templateUri,
             "default"
+        );
+    }
+
+    private bindWebviewMessageListener(webview: vscode.Webview, document: vscode.TextDocument) {
+        webview.onDidReceiveMessage(
+            (message: any) => {
+                const command = message.command;
+                const data = message.data;
+    
+                switch (command) {
+                    case "alchemy.open_node_template":
+                        {
+                            if( typeof data === 'string' ) {
+                                const templatUri = vscode.Uri.from( { scheme: "file", path: data } );
+                                console.debug( "on_open_node_template, templatUri: " + templatUri.fsPath );
+                                this.onOpenNodeTemplate( templatUri );
+                            } else {
+                                vscode.window.showErrorMessage( "Alchemy: Invalid command: " + typeof message + typeof data );
+                            }
+                        }
+                        return;
+                    case "alchemy.query_node_template":
+                        {
+                            if( typeof vscode.workspace.workspaceFolders === 'undefined' ) {
+                                return;
+                            }
+
+                            const workspaceFolderUri = vscode.Uri.parse( vscode.workspace.workspaceFolders[0].uri.path );
+                            const strippedTemplateUri = vscode.Uri.parse( data.templateUri ).with( { scheme: undefined, authority: undefined } );
+                            const templateUri = vscode.Uri.joinPath( workspaceFolderUri, strippedTemplateUri.path );
+
+                            const content = fsPromises.readFile( templateUri.fsPath ).then((buffer: Buffer) => {
+
+                                const template = JSON.parse( buffer.toString() );
+                                template.templateUri = templateUri.fsPath;
+
+                                const message = {
+                                    command: "alchemy.create_node",
+                                    data: {
+                                        template: JSON.stringify( template, null, '\t' ),
+                                        pos: data.pos
+                                    }
+                                };
+
+                                webview.postMessage(message);
+
+                                console.debug( "alchemy.query_node_template" );
+                            });
+                        }
+                        break;
+                    case "alchemy.update_document":
+                        {
+                            const edit = new vscode.WorkspaceEdit();
+
+                            edit.replace(
+                                document.uri,
+                                new vscode.Range(0, 0, document.lineCount, 0),
+                                data
+                            );
+
+                            vscode.workspace.applyEdit( edit );
+                        }
+                        break;
+                }
+            },
+            undefined,
+            this.disposables
         );
     }
 }

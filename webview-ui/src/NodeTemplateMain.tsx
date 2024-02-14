@@ -1,13 +1,11 @@
 import { NodeTemplateView } from './View/NodeTemplateView';
 
-import "./NodeTemplatePanel.css"
+import "./NodeTemplateMain.css"
 
-function NodeTemplatePanel() {
+export default function NodeTemplateMain() {
     return (
         <main>
             <NodeTemplateView />
         </main>
     );
 }
-
-export default NodeTemplatePanel;

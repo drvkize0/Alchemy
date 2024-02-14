@@ -9,22 +9,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NodeTemplateView = void 0;
+exports.NodeTemplateProvider = void 0;
 const vscode = require("vscode");
 const path_1 = require("path");
 const getUri_1 = require("../utilities/getUri");
 const getNonce_1 = require("../utilities/getNonce");
-class NodeTemplateView {
+class NodeTemplateProvider {
     constructor(context) {
         this.disposables = [];
         this.extensionUri = context.extensionUri;
     }
     static register(context) {
-        context.subscriptions.push(vscode.window.registerWebviewViewProvider(NodeTemplateView.viewType, new NodeTemplateView(context)));
-        context.subscriptions.push(vscode.commands.registerCommand("alchemy.update_node_templates", () => { NodeTemplateView.updateNodeTemplates(); }));
+        context.subscriptions.push(vscode.window.registerWebviewViewProvider(NodeTemplateProvider.viewType, new NodeTemplateProvider(context)));
+        context.subscriptions.push(vscode.commands.registerCommand("alchemy.update_node_templates", () => { NodeTemplateProvider.updateNodeTemplates(); }));
     }
     resolveWebviewView(webviewView, context, token) {
-        NodeTemplateView.webview = webviewView.webview;
+        NodeTemplateProvider.webview = webviewView.webview;
         webviewView.webview.options = {
             enableScripts: true
         };
@@ -58,7 +58,7 @@ class NodeTemplateView {
                 const data = message.data;
                 switch (command) {
                     case "alchemy.query_node_templates":
-                        NodeTemplateView.updateNodeTemplates();
+                        NodeTemplateProvider.updateNodeTemplates();
                         return;
                 }
             }, undefined, this.disposables);
@@ -75,13 +75,13 @@ class NodeTemplateView {
                 else if (type === vscode.FileType.Directory) {
                     const childFolderUri = vscode.Uri.joinPath(folderUri, name);
                     const childPathUri = vscode.Uri.joinPath(pathUri, name);
-                    yield NodeTemplateView.searchNodeTemplatesRecursive(childFolderUri, childPathUri, templateFiles);
+                    yield NodeTemplateProvider.searchNodeTemplatesRecursive(childFolderUri, childPathUri, templateFiles);
                 }
             }
         });
     }
     static updateNodeTemplates() {
-        if (typeof NodeTemplateView.webview === 'undefined') {
+        if (typeof NodeTemplateProvider.webview === 'undefined') {
             return;
         }
         if (typeof vscode.workspace.workspaceFolders === 'undefined') {
@@ -89,17 +89,17 @@ class NodeTemplateView {
         }
         let templateFiles = [];
         const workspaceFolderUri = vscode.workspace.workspaceFolders[0].uri;
-        NodeTemplateView.searchNodeTemplatesRecursive(workspaceFolderUri, vscode.Uri.parse("./"), templateFiles).then(() => {
+        NodeTemplateProvider.searchNodeTemplatesRecursive(workspaceFolderUri, vscode.Uri.parse("./"), templateFiles).then(() => {
             const message = {
                 command: "alchemy.update_node_templates",
                 data: JSON.stringify({
                     nodeTemplates: templateFiles
                 })
             };
-            NodeTemplateView.webview.postMessage(message);
+            NodeTemplateProvider.webview.postMessage(message);
         });
     }
 }
-exports.NodeTemplateView = NodeTemplateView;
-NodeTemplateView.viewType = "alchemy.node_template_view";
-//# sourceMappingURL=NodeTemplateView.js.map
+exports.NodeTemplateProvider = NodeTemplateProvider;
+NodeTemplateProvider.viewType = "alchemy.node_template_view";
+//# sourceMappingURL=NodeTemplateProvider.js.map

@@ -102,4 +102,4 @@ class NodeTemplateView {
 }
 exports.NodeTemplateView = NodeTemplateView;
 NodeTemplateView.viewType = "alchemy.node_template_view";
-//# sourceMappingURL=NodeTemplateView.js.map
+//# sourceMappingURL=NodeTemplate.js.map

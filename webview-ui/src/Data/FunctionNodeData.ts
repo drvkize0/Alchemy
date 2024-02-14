@@ -1,5 +1,3 @@
-import { create } from 'zustand';
-
 export type ParameterData = {
     name: string;
     type: string;
@@ -13,9 +11,9 @@ export type ReturnValueData = {
 }
 
 export type FunctionNodeData = {
+    templateUri: string;
     name: string;
     description: string;
-    templateUri: string;
     parameters: ParameterData[];
     returnValues: ReturnValueData[];
 }

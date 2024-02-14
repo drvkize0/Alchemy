@@ -4,7 +4,7 @@ import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
 import { nodes as initialNodes, edges as initialEdges } from "./test_nodes_edges";
 
-export class NodeTemplateView implements vscode.WebviewViewProvider {
+export class NodeTemplateProvider implements vscode.WebviewViewProvider {
     private static readonly viewType = "alchemy.node_template_view";
     private readonly extensionUri: vscode.Uri;
     private static webview: vscode.Webview;
@@ -15,8 +15,8 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
     }
 
     public static register( context: vscode.ExtensionContext ) {
-        context.subscriptions.push( vscode.window.registerWebviewViewProvider( NodeTemplateView.viewType, new NodeTemplateView( context ) ) );
-        context.subscriptions.push( vscode.commands.registerCommand( "alchemy.update_node_templates", () => { NodeTemplateView.updateNodeTemplates(); } ) );
+        context.subscriptions.push( vscode.window.registerWebviewViewProvider( NodeTemplateProvider.viewType, new NodeTemplateProvider( context ) ) );
+        context.subscriptions.push( vscode.commands.registerCommand( "alchemy.update_node_templates", () => { NodeTemplateProvider.updateNodeTemplates(); } ) );
     }
 
     resolveWebviewView(
@@ -24,7 +24,7 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext<unknown>,
         token: vscode.CancellationToken): void | Thenable<void>
     {
-        NodeTemplateView.webview = webviewView.webview;
+        NodeTemplateProvider.webview = webviewView.webview;
 
         webviewView.webview.options = {
             enableScripts: true
@@ -64,7 +64,7 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
     
                 switch (command) {
                     case "alchemy.query_node_templates":
-                        NodeTemplateView.updateNodeTemplates();
+                        NodeTemplateProvider.updateNodeTemplates();
                         return;
                 }
             },
@@ -83,14 +83,14 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
             else if( type === vscode.FileType.Directory ) {
                 const childFolderUri = vscode.Uri.joinPath( folderUri, name );
                 const childPathUri = vscode.Uri.joinPath( pathUri, name );
-                await NodeTemplateView.searchNodeTemplatesRecursive( childFolderUri, childPathUri, templateFiles );
+                await NodeTemplateProvider.searchNodeTemplatesRecursive( childFolderUri, childPathUri, templateFiles );
             }
         }
     }
 
     public static updateNodeTemplates() {
 
-        if( typeof NodeTemplateView.webview === 'undefined' ) {
+        if( typeof NodeTemplateProvider.webview === 'undefined' ) {
             return;
         }
 
@@ -100,12 +100,7 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
 
         let templateFiles: string[] = [];
         const workspaceFolderUri = vscode.workspace.workspaceFolders[0].uri;
-        NodeTemplateView.searchNodeTemplatesRecursive( workspaceFolderUri, vscode.Uri.parse("./"), templateFiles ).then( () => {
-            // templateFiles.map((fullPath: string) => {
-            //     vscode.Uri.parse( fullPath ).with( { path: workspaceFolderUri.path } );
-            // });
-
-            vscode.window.showInformationMessage( "files: " + templateFiles.toString() );
+        NodeTemplateProvider.searchNodeTemplatesRecursive( workspaceFolderUri, vscode.Uri.parse("./"), templateFiles ).then( () => {
 
             const message = {
                 command: "alchemy.update_node_templates",
@@ -114,7 +109,7 @@ export class NodeTemplateView implements vscode.WebviewViewProvider {
                 })
             };
 
-            NodeTemplateView.webview.postMessage(message);
+            NodeTemplateProvider.webview.postMessage(message);
         });
     }
 }

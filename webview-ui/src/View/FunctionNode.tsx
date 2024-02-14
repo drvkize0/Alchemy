@@ -54,10 +54,14 @@ function FunctionNode( {id, selected, data}: NodeProps<FunctionNodeData> ) {
     const unselectedStyle = { border: "2px solid silver" };
 
     const onDoubleClick = () => {
-        vscode.postMessage( {
+
+        const message = {
             command: "alchemy.open_node_template",
             data: data.templateUri
-        });
+        };
+
+        vscode.postMessage( message );
+        console.debug( "alchemy.open_node_template: ", data.templateUri );
     };
 
     return (

@@ -1,13 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import ReactFlowProvider from "reactflow";
-import GraphEditor  from "./GraphEditor";
+import GraphEditorMain  from "./GraphEditorMain";
 
 import './index_graph_editor.css';
 
 ReactDOM.render(
     <React.StrictMode>
-        <GraphEditor /> 
+        <GraphEditorMain /> 
     </React.StrictMode>,
     document.getElementById("graph_editor")
 );

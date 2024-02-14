@@ -13,13 +13,18 @@ import {
     Connection,
     OnConnect,
 
+    XYPosition,
+    Viewport
+
 } from 'reactflow';
 
+import { v1 as uuidv1 } from "uuid";
 import { create } from 'zustand';
 
 import { ParameterData, ReturnValueData, FunctionNodeData } from './FunctionNodeData'
 
 import { nodes as initialNodes, edges as initialEdges } from './test_nodes_edges';
+import { vscode } from "../utilities/vscode";
 
 export enum ThemeMode {
     Light,
@@ -28,34 +33,43 @@ export enum ThemeMode {
 
 export type GraphEditorData = {
     themeMode: ThemeMode;
-    nodes: Node[];
+    nodes: Node<FunctionNodeData>[];
     edges: Edge[];
     selectedNodes: Node[];
+    selectedEdges: Edge[];
+    viewport: Viewport;
     debug: string;
 
-    setThemeMode: (themeMode: ThemeMode) => void;
     onNodesChange: OnNodesChange;
     onEdgesChange: OnEdgesChange;
     onConnect: OnConnect;
-
-    setDebug: ( text: string ) => void;
-    updateGraph: ( graphJson: string ) => void;
 
     setFunctionNodeName: (id: string, name: string) => void;
     setFunctionNodeDescription: (id: string, description: string) => void;
     setFunctionNodeParameters: (id: string, parameters: ParameterData[]) => void;
     setFunctionNodeReturnValues: (id: string, returnValues: ReturnValueData[]) => void;
-    setEdgeAnimated: (id: string, animated: boolean) => void;
+    
+    updateGraph: ( graphJson: string ) => void;
+    createNode: ( nodeTemplateJson: string, pos: XYPosition ) => void;
+    updateDocument: () => void;
+
+    setThemeMode: (themeMode: ThemeMode) => void;
+    setViewport: (viewport: Viewport) => void;
+    setEdgeHightlighted: (id: string, animated: boolean) => void;
     setSelectedNodes: (nodes: Node[]) => void;
+    setSelectedEdges: (edges: Edge[]) => void;
+
+    setDebug: ( text: string ) => void;
 };
 
-const makeEdgeFromConnection = (connection: Connection): Edge => {
+const makeEdgeFromConnection = (connection: Connection, isAnimated: boolean): Edge => {
     return {
         id: "e" + connection.source + "@" + connection.sourceHandle + "-" + connection.target + "@" + connection.targetHandle,
         source: connection.source + "",
         sourceHandle: connection.sourceHandle,
         target: connection.target + "",
-        targetHandle: connection.targetHandle
+        targetHandle: connection.targetHandle,
+        animated: isAnimated
     }
 }
 
@@ -65,52 +79,38 @@ const useStore = create<GraphEditorData>((set, get) => ({
     nodes: [],
     edges: [],
     selectedNodes: [],
+    selectedEdges: [],
+    viewport: {x: 0, y: 0, zoom: 1},
     debug: "Debug",
 
-    setThemeMode: (themeMode: ThemeMode) => {
-        set({
-            themeMode: themeMode
-        });
-    },
     onNodesChange: (changes: NodeChange[]) => {
         set({
             nodes: applyNodeChanges(changes, get().nodes)
         });
     },
-    onEdgesChange: (chagnes: EdgeChange[]) => {
+
+    onEdgesChange: (changes: EdgeChange[]) => {
         set({
-            edges: applyEdgeChanges(chagnes, get().edges)
+            edges: applyEdgeChanges(changes, get().edges)
         });
     },
+
     onConnect: (connection: Connection) => {
+
+        const selectedSourceOrTarget = get().selectedNodes.find((selectedNode: Node) => {
+            return selectedNode.id == connection.source || selectedNode.id == connection.target;
+        });
+
         set({
             edges: addEdge(
-                makeEdgeFromConnection(connection),
+                makeEdgeFromConnection(connection, typeof selectedSourceOrTarget !== 'undefined'),
                 get().edges
-            ),
-        });
-    },
-
-    setDebug: ( text: string ) => {
-        set({
-            debug: text
-        });
-    },
-
-    updateGraph: (graphJson: string) => {
-        const graphData = JSON.parse( graphJson );
-        
-        if( typeof graphData !== 'object' )
-            return;
-
-        set({
-            nodes: graphData.nodes,
-            edges: graphData.edges,
-            debug: graphJson,
+            )
         });
     },
 
     setFunctionNodeName: (id: string, name: string) => {
+
         set({
             nodes: get().nodes.map((node) => {
                 if( node.id === id) {
@@ -120,6 +120,7 @@ const useStore = create<GraphEditorData>((set, get) => ({
             })
         });
     },
+
     setFunctionNodeDescription: (id: string, description: string) => {
         set({
             nodes: get().nodes.map((node) => {
@@ -130,6 +131,7 @@ const useStore = create<GraphEditorData>((set, get) => ({
             })
         });
     },
+
     setFunctionNodeParameters: (id: string, parameters: ParameterData[]) => {
         set({
             nodes: get().nodes.map((node) => {
@@ -140,6 +142,7 @@ const useStore = create<GraphEditorData>((set, get) => ({
             })
         });
     },
+
     setFunctionNodeReturnValues: (id: string, returnValues: ReturnValueData[]) => {
         set({
             nodes: get().nodes.map((node) => {
@@ -150,7 +153,76 @@ const useStore = create<GraphEditorData>((set, get) => ({
             })
         });
     },
-    setEdgeAnimated: (id: string, animated: boolean) => {
+
+    createNode: ( nodeTemplateJson: string, pos: XYPosition ) => {
+        const nodeTemplateData = JSON.parse( nodeTemplateJson );
+
+        if( typeof nodeTemplateData != 'object' )
+            return;
+
+        const newNode = {
+            id: uuidv1(),
+            type: "function",
+            data: nodeTemplateData,
+            position: pos,
+        };
+
+        set({
+            nodes: get().nodes.concat( newNode )
+        });
+
+        get().updateDocument();
+    },
+
+    updateGraph: (graphJson: string) => {
+
+        console.debug("OnUpdateGraph");
+
+        if( graphJson.length == 0 )
+            return;
+
+        const graphData = JSON.parse( graphJson );
+        
+        if( typeof graphData !== 'object' )
+            return;
+
+        set({
+            nodes: typeof graphData.nodes !== 'undefined' ? graphData.nodes : [],
+            edges: typeof graphData.edges !== 'undefined' ? graphData.edges : []
+        });
+    },
+
+    updateDocument: () => {
+
+        const doc = {
+            nodes: get().nodes.map(({id, type, data, position}) => ({id, type, data, position})),
+            edges: get().edges.map(({id, source, sourceHandle, target, targetHandle}) => ({id, source, sourceHandle, target, targetHandle})),
+            viewport: get().viewport
+        };
+
+        const docJson = JSON.stringify( doc, null, '\t' );
+
+        vscode.postMessage({
+            command: "alchemy.update_document",
+            data: docJson
+        });
+
+        console.info( "updateDocument: " + docJson );
+    },
+
+    setThemeMode: (themeMode: ThemeMode) => {
+        set({
+            themeMode: themeMode
+        });
+    },
+
+    setViewport: (viewport: Viewport) => {
+        set({
+            viewport: viewport
+        });
+    },
+
+    setEdgeHightlighted: (id: string, animated: boolean) => {
         set({
             edges: get().edges.map((edge) => {
                 if( edge.id === id) {
@@ -160,9 +232,22 @@ const useStore = create<GraphEditorData>((set, get) => ({
             })
         });
     },
+
     setSelectedNodes: (nodes: Node[]) => {
         set({
             selectedNodes: nodes
+        });
+    },
+
+    setSelectedEdges: (edges: Edge[]) => {
+        set({
+            selectedEdges: edges
+        })
+    },
+
+    setDebug: ( text: string ) => {
+        set({
+            debug: text
         });
     },
 }));

@@ -4,9 +4,11 @@
 
 .parameter-pin {
     display: flex;
-    padding: 2px;
     flex-direction: row;
     flex-wrap: nowrap;
+
+    padding: 2px;
+    position: relative;
     font-size: 1ch;
     /* background-color: plum; */
 }
@@ -14,21 +16,18 @@
 .parameter-pin .react-flow__handle {
     border: 0;
     border-radius: 0;
-    position: relative;
     top: 50%;
-    left: -8px;
-    background-color: orange;
-}
-
-.parameter-pin__text {
-    /* background-color: salmon; */
+    left: -6px;
+    background-color: yellow
 }
 
 .return-value-pin {
     display: flex;
-    padding: 2px;
     flex-direction: row;
     flex-wrap: nowrap;
+
+    padding: 2px;
+    position: relative;
     font-size: 1ch;
     /* background-color: plum; */
 }
@@ -36,14 +35,9 @@
 .return-value-pin .react-flow__handle {
     border: 0;
     border-radius: 0;
-    position: relative;
     top: 50%;
-    right: -8px;
-    background-color: green;
-}
-
-.return-value-pin__text {
-    /* background-color: green; */
+    right: -6px;
+    background-color: lightgreen;
 }
 
 .function-node {

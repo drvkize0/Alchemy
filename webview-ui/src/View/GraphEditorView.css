@@ -1,4 +1,7 @@
-.react-flow__edge {
-    width: 5px;
-    color: black;
+.react-flow__edge .react-flow__edge-path {
+    stroke: greenyellow;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+    stroke: red;
 }

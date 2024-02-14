@@ -6,7 +6,7 @@ exports.nodes = [
         id: '1',
         type: 'function',
         data: {
-            templateUri: "AddTemplate.acnode",
+            templateUri: "D:\\codex\\AlchemyTest\\templates\\add.act",
             name: 'add',
             description: 'calculate sum',
             parameters: [
@@ -23,7 +23,7 @@ exports.nodes = [
         id: '2',
         type: 'function',
         data: {
-            templateUri: "AddTemplate.acnode",
+            templateUri: "D:\\codex\\AlchemyTest\\templates\\add.act",
             name: 'add',
             description: 'calculate sum',
             parameters: [
@@ -40,7 +40,7 @@ exports.nodes = [
         id: '3',
         type: 'function',
         data: {
-            templateUri: "AddTemplate.acnode",
+            templateUri: "D:\\codex\\AlchemyTest\\templates\\add.act",
             name: 'add',
             description: 'calculate sum',
             parameters: [
