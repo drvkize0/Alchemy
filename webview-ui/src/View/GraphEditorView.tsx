@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
     Node,
     ReactFlowProvider,
@@ -14,6 +14,7 @@ import {
     useOnSelectionChange,
     OnSelectionChangeParams,
     SelectionMode,
+    Viewport
 } from 'reactflow';
 import { vscode } from '../utilities/vscode';
 import { ThemeMode, GraphEditorData, useStore } from '../Data/GraphEditorData';
@@ -26,10 +27,9 @@ const selector = (data: GraphEditorData) => ({
     themeMode: data.themeMode,
     nodes: data.nodes,
     edges: data.edges,
-    viewport: data.viewport,
     selectedNodes: data.selectedNodes,
     selectedEdges: data.selectedEdges,
-    debug: data.debug,
+    viewport: data.viewport,
 
     onNodesChange: data.onNodesChange,
     onEdgesChange: data.onEdgesChange,
@@ -40,10 +40,12 @@ const selector = (data: GraphEditorData) => ({
     updateDocument: data.updateDocument,
 
     setThemeMode: data.setThemeMode,
-    setViewport: data.setViewport,
     setEdgeHightlighted: data.setEdgeHightlighted,
     setSelectedNodes: data.setSelectedNodes,
     setSelectedEdges: data.setSelectedEdges,
+    setViewport: data.setViewport,
+
+    debug: data.debug,
 });
 
 const nodeTypes = {
@@ -55,7 +57,28 @@ export function GraphView() {
     const reactFlow = useReactFlow();
 
     // graph states
-    const { themeMode, nodes, edges, selectedNodes, selectedEdges, viewport, debug, onNodesChange, onEdgesChange, onConnect, setDebug, updateGraph, createNode, updateDocument, setThemeMode, setViewport, setEdgeHightlighted, setSelectedNodes, setSelectedEdges } = useStore(selector);
+    const {
+        nodes,
+        edges,
+        themeMode,
+        selectedNodes,
+        selectedEdges,
+        viewport,
+        debug,
+        onNodesChange,
+        onEdgesChange,
+        onConnect,
+        updateGraph,
+        createNode,
+        updateDocument,
+        setThemeMode,
+        setEdgeHightlighted,
+        setSelectedNodes,
+        setSelectedEdges,
+        setViewport,
+        setDebug
+    } = useStore(selector);
+
     const toggleTheme = () => {
         setThemeMode( themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light );
     };
@@ -76,8 +99,33 @@ export function GraphView() {
         }
     }
 
+    type stateType = {
+        documentUri: string
+        viewport: Viewport
+    };
+
+    const setState = () => {
+        const viewport = reactFlow.getViewport();
+        vscode.setState({
+            viewport: reactFlow.getViewport()
+        });
+        console.debug( "viewport.zoom = " + viewport.zoom);
+    }
+
     useEffect(() => {
         window.addEventListener( "message", onDidReceivedMessage );
+
+        const state = vscode.getState() as stateType;
+        if( state ) {
+
+            vscode.postMessage({
+                command: "alchemy.query_document",
+                data: undefined
+            });
+
+            setViewport( state.viewport );
+        }
+
         return () => {
             window.removeEventListener( 'message', onDidReceivedMessage );
         };
@@ -103,6 +151,14 @@ export function GraphView() {
             setEdgeHightlighted( selectedEdge.id, true );
         }
     }, [selectedEdges])
+
+    useLayoutEffect(() => {
+        if( typeof viewport !== 'undefined' )
+        {
+            reactFlow.setViewport(viewport);
+            console.debug( "useEffect: viewport.zoom: " + viewport.zoom );
+        }
+    }, [viewport])
 
     const onChange = useCallback((selectedChange: OnSelectionChangeParams) => {
         setSelectedNodes( selectedChange.nodes );
@@ -141,12 +197,6 @@ export function GraphView() {
         setDebug( JSON.stringify( message, null, '\t' ) );
     }
 
-    // update viewport from document
-    useEffect(() => {
-        if( typeof viewport !== 'undefined' )
-            reactFlow.setViewport( viewport );
-    }, [viewport]);
-
     // fitview to selected nodes or all nodes
     // hotkey: F
     const fitViewOptions: FitViewOptions = {
@@ -169,6 +219,7 @@ export function GraphView() {
             onNodeDragStop={updateDocument}
             onConnect={onConnect}
             onEdgesDelete={updateDocument}
+            onMoveEnd={setState}
 
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -178,7 +229,6 @@ export function GraphView() {
             zoomOnDoubleClick={true}
             connectionRadius={16}
             deleteKeyCode="Delete"
-            fitView
 
             onDrop={onDrop}
             onDragOver={onDragOver}

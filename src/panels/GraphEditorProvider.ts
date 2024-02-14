@@ -68,13 +68,13 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         this.disposables.push( vscode.workspace.onDidChangeTextDocument(e => {
 			if (e.document.uri.toString() === document.uri.toString()) {
                 console.debug("onDidChangeTextDocument updateGraph");
-				this.updateGraph( webviewPanel, document );
+				this.updateGraph( webviewPanel.webview, document );
 			}
 		}));
 
         webviewPanel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-        this.updateGraph( webviewPanel, document );
+        this.updateGraph( webviewPanel.webview, document );
     }
 
     static newFileId = 1;
@@ -91,12 +91,12 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
     }
 
-    public updateGraph( webviewPanel: vscode.WebviewPanel, document: vscode.TextDocument ) {
+    public updateGraph( webview: vscode.Webview, document: vscode.TextDocument ) {
         const msg = {
             command: "alchemy.update_graph",
-            data: document.getText(),
+            data: document.getText()
         };
-        webviewPanel.webview.postMessage(msg);
+        webview.postMessage(msg);
     }
 
     private onOpenNodeTemplate( templateUri: vscode.Uri ) {
@@ -167,6 +167,10 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
 
                             vscode.workspace.applyEdit( edit );
                         }
+                        break;
+
+                    case "alchemy.query_document":
+                        this.updateGraph( webview, document );
                         break;
                 }
             },

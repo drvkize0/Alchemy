@@ -61,11 +61,11 @@ class GraphEditorProvider {
             this.disposables.push(vscode.workspace.onDidChangeTextDocument(e => {
                 if (e.document.uri.toString() === document.uri.toString()) {
                     console.debug("onDidChangeTextDocument updateGraph");
-                    this.updateGraph(webviewPanel, document);
+                    this.updateGraph(webviewPanel.webview, document);
                 }
             }));
             webviewPanel.onDidDispose(() => this.dispose(), null, this.disposables);
-            this.updateGraph(webviewPanel, document);
+            this.updateGraph(webviewPanel.webview, document);
         });
     }
     static createNewGraph() {
@@ -78,12 +78,12 @@ class GraphEditorProvider {
             .with({ scheme: 'untitled' });
         vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
     }
-    updateGraph(webviewPanel, document) {
+    updateGraph(webview, document) {
         const msg = {
             command: "alchemy.update_graph",
-            data: document.getText(),
+            data: document.getText()
         };
-        webviewPanel.webview.postMessage(msg);
+        webview.postMessage(msg);
     }
     onOpenNodeTemplate(templateUri) {
         vscode.commands.executeCommand("vscode.openWith", templateUri, "default");
@@ -134,6 +134,9 @@ class GraphEditorProvider {
                         edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), data);
                         vscode.workspace.applyEdit(edit);
                     }
+                    break;
+                case "alchemy.query_document":
+                    this.updateGraph(webview, document);
                     break;
             }
         }, undefined, this.disposables);

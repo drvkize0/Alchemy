@@ -32,12 +32,13 @@ export enum ThemeMode {
 };
 
 export type GraphEditorData = {
-    themeMode: ThemeMode;
     nodes: Node<FunctionNodeData>[];
     edges: Edge[];
+
+    themeMode: ThemeMode;
     selectedNodes: Node[];
     selectedEdges: Edge[];
-    viewport: Viewport;
+    viewport?: Viewport;
     debug: string;
 
     onNodesChange: OnNodesChange;
@@ -48,16 +49,16 @@ export type GraphEditorData = {
     setFunctionNodeDescription: (id: string, description: string) => void;
     setFunctionNodeParameters: (id: string, parameters: ParameterData[]) => void;
     setFunctionNodeReturnValues: (id: string, returnValues: ReturnValueData[]) => void;
-    
-    updateGraph: ( graphJson: string ) => void;
+
+    updateGraph: ( document: string ) => void;
     createNode: ( nodeTemplateJson: string, pos: XYPosition ) => void;
     updateDocument: () => void;
 
     setThemeMode: (themeMode: ThemeMode) => void;
-    setViewport: (viewport: Viewport) => void;
     setEdgeHightlighted: (id: string, animated: boolean) => void;
     setSelectedNodes: (nodes: Node[]) => void;
     setSelectedEdges: (edges: Edge[]) => void;
+    setViewport: ( viewport: Viewport ) => void;
 
     setDebug: ( text: string ) => void;
 };
@@ -75,12 +76,15 @@ const makeEdgeFromConnection = (connection: Connection, isAnimated: boolean): Ed
 
 const useStore = create<GraphEditorData>((set, get) => ({
 
-    themeMode: ThemeMode.Light,
     nodes: [],
     edges: [],
+    documentUri: "",
+
+    themeMode: ThemeMode.Light,
     selectedNodes: [],
     selectedEdges: [],
-    viewport: {x: 0, y: 0, zoom: 1},
+    viewport: undefined,
+
     debug: "Debug",
 
     onNodesChange: (changes: NodeChange[]) => {
@@ -174,14 +178,14 @@ const useStore = create<GraphEditorData>((set, get) => ({
         get().updateDocument();
     },
 
-    updateGraph: (graphJson: string) => {
+    updateGraph: (document: string) => {
 
         console.debug("OnUpdateGraph");
 
-        if( graphJson.length == 0 )
+        if( document.length == 0 )
             return;
 
-        const graphData = JSON.parse( graphJson );
+        const graphData = JSON.parse( document );
         
         if( typeof graphData !== 'object' )
             return;
@@ -190,6 +194,13 @@ const useStore = create<GraphEditorData>((set, get) => ({
             nodes: typeof graphData.nodes !== 'undefined' ? graphData.nodes : [],
             edges: typeof graphData.edges !== 'undefined' ? graphData.edges : []
         });
+
+        // const doc = {
+        //     nodes: get().nodes.map(({id, type, data, position}) => ({id, type, data, position})),
+        //     edges: get().edges.map(({id, source, sourceHandle, target, targetHandle}) => ({id, source, sourceHandle, target, targetHandle})),
+        // };
+
+        // const docJson = JSON.stringify( doc, null, '\t' );
     },
 
     updateDocument: () => {
@@ -197,7 +208,6 @@ const useStore = create<GraphEditorData>((set, get) => ({
         const doc = {
             nodes: get().nodes.map(({id, type, data, position}) => ({id, type, data, position})),
             edges: get().edges.map(({id, source, sourceHandle, target, targetHandle}) => ({id, source, sourceHandle, target, targetHandle})),
-            viewport: get().viewport
         };
 
         const docJson = JSON.stringify( doc, null, '\t' );
@@ -213,12 +223,6 @@ const useStore = create<GraphEditorData>((set, get) => ({
     setThemeMode: (themeMode: ThemeMode) => {
         set({
             themeMode: themeMode
-        });
-    },
-
-    setViewport: (viewport: Viewport) => {
-        set({
-            viewport: viewport
         });
     },
 
@@ -242,6 +246,12 @@ const useStore = create<GraphEditorData>((set, get) => ({
     setSelectedEdges: (edges: Edge[]) => {
         set({
             selectedEdges: edges
+        })
+    },
+
+    setViewport: ( viewport: Viewport ) => {
+        set({
+            viewport: viewport
         })
     },
 
