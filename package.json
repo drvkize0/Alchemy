@@ -7,7 +7,23 @@
         "vscode": "^1.86.0"
     },
     "main": "./out/extension.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/drvkize0/Alchemy.git"
+    },
     "contributes": {
+        "languages": [
+            {
+                "id": "acg",
+                "extensions": [
+                    ".acg"
+                ],
+                "icon": {
+                    "light": "./json.svg",
+                    "dark": "./json.svg"
+                }
+            }
+        ],
         "customEditors": [
             {
                 "viewType": "alchemy.graph_editor",
@@ -16,7 +32,8 @@
                     {
                         "filenamePattern": "*.acg"
                     }
-                ]
+                ],
+                "priority": "default"
             }
         ],
         "views": {

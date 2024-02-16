@@ -51,6 +51,8 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         token: vscode.CancellationToken
     ): Promise<void> {
 
+        vscode.languages.setTextDocumentLanguage( document, "acg" );
+
         webviewPanel.webview.options = {
             enableScripts: true
         };
@@ -90,15 +92,18 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         const uri = vscode.Uri.joinPath( workspaceFolders[0].uri, `UntitledGraph-${GraphEditorProvider.newFileId++}.acg` )
             .with({ scheme: 'untitled' });
 
-        vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
+        vscode.commands.executeCommand( 'vscode.openWith', uri, GraphEditorProvider.viewType );
     }
 
-    private openNodeTemplate( uri: string ) {
+    public static openNodeTemplate( uri: string ) {
         const templateUri = vscode.Uri.from( { scheme: "file", path: uri } );
+        const viewColumn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : vscode.ViewColumn.One;
+
         vscode.commands.executeCommand(
             "vscode.openWith",
             templateUri,
-            "default"
+            "default",
+            viewColumn
         );
     }
 
@@ -161,7 +166,7 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         console.debug( "Alchemy: updateGraph with clientVersion: " + clientState.clientVersion + " document version: " + document.version );
     }
 
-    private onUpdateDocument( document: vscode.TextDocument, content: string, version: number, clientState: GraphEditorClientState ) {
+    private async onUpdateDocument( document: vscode.TextDocument, content: string, version: number, clientState: GraphEditorClientState ) {
         const edit = new vscode.WorkspaceEdit();
 
         clientState.clientVersion = version;
@@ -174,12 +179,12 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
         edit.replace(
             document.uri,
             new vscode.Range(0, 0, document.lineCount, 0),
-            content
+            content,
+            undefined
         );
 
         console.debug( "Alchemy: updateDocument with version: " + version + "\n" + content );
-
-        vscode.workspace.applyEdit( edit );
+        return await vscode.workspace.applyEdit( edit );
     }
 
     private onQueryDocument( webview: vscode.Webview, document: vscode.TextDocument, version: number | undefined, clientState: GraphEditorClientState ) {
@@ -197,7 +202,7 @@ export class GraphEditorProvider implements vscode.CustomTextEditorProvider {
                 switch (command) {
                     case "alchemy.open_node_template":
                         console.debug( "Alchemy: data.templateUri = " + data );
-                        this.openNodeTemplate( data );
+                        GraphEditorProvider.openNodeTemplate( data );
                         return;
                     case "alchemy.query_node_template":
                         this.createNode( webview, data.templateUri, data.pos );

@@ -44,6 +44,7 @@ class GraphEditorProvider {
     }
     resolveCustomTextEditor(document, webviewPanel, token) {
         return __awaiter(this, void 0, void 0, function* () {
+            vscode.languages.setTextDocumentLanguage(document, "acg");
             webviewPanel.webview.options = {
                 enableScripts: true
             };
@@ -74,9 +75,10 @@ class GraphEditorProvider {
             .with({ scheme: 'untitled' });
         vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
     }
-    openNodeTemplate(uri) {
+    static openNodeTemplate(uri) {
         const templateUri = vscode.Uri.from({ scheme: "file", path: uri });
-        vscode.commands.executeCommand("vscode.openWith", templateUri, "default");
+        const viewColumn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : vscode.ViewColumn.One;
+        vscode.commands.executeCommand("vscode.openWith", templateUri, "default", viewColumn);
     }
     readNodeTemplate(templateUri) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -128,15 +130,17 @@ class GraphEditorProvider {
         console.debug("Alchemy: updateGraph with clientVersion: " + clientState.clientVersion + " document version: " + document.version);
     }
     onUpdateDocument(document, content, version, clientState) {
-        const edit = new vscode.WorkspaceEdit();
-        clientState.clientVersion = version;
-        if (version <= document.version) {
-            console.debug("Alchemy: update document failed with version: " + version + "\n" + content);
-            return;
-        }
-        edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), content);
-        console.debug("Alchemy: updateDocument with version: " + version + "\n" + content);
-        vscode.workspace.applyEdit(edit);
+        return __awaiter(this, void 0, void 0, function* () {
+            const edit = new vscode.WorkspaceEdit();
+            clientState.clientVersion = version;
+            if (version <= document.version) {
+                console.debug("Alchemy: update document failed with version: " + version + "\n" + content);
+                return;
+            }
+            edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), content, undefined);
+            console.debug("Alchemy: updateDocument with version: " + version + "\n" + content);
+            return yield vscode.workspace.applyEdit(edit);
+        });
     }
     onQueryDocument(webview, document, version, clientState) {
         clientState.clientVersion = version;
@@ -150,7 +154,7 @@ class GraphEditorProvider {
             switch (command) {
                 case "alchemy.open_node_template":
                     console.debug("Alchemy: data.templateUri = " + data);
-                    this.openNodeTemplate(data);
+                    GraphEditorProvider.openNodeTemplate(data);
                     return;
                 case "alchemy.query_node_template":
                     this.createNode(webview, data.templateUri, data.pos);
