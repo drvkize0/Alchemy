@@ -14,7 +14,9 @@ import {
     OnConnect,
 
     XYPosition,
-    Viewport
+    Viewport,
+    NodeSelectionChange,
+    EdgeSelectionChange
 
 } from 'reactflow';
 
@@ -34,6 +36,10 @@ export enum ThemeMode {
 export type GraphEditorData = {
     nodes: Node<FunctionNodeData>[];
     edges: Edge[];
+    stateDirty: boolean;
+    graphDirty: boolean;
+    documentDirty: boolean;
+    version: number,
 
     themeMode: ThemeMode;
     selectedNodes: Node[];
@@ -50,8 +56,11 @@ export type GraphEditorData = {
     setFunctionNodeParameters: (id: string, parameters: ParameterData[]) => void;
     setFunctionNodeReturnValues: (id: string, returnValues: ReturnValueData[]) => void;
 
-    updateGraph: ( document: string ) => void;
+    updateGraph: ( data: string, version: number ) => void;
     createNode: ( nodeTemplateJson: string, pos: XYPosition ) => void;
+    setStateDirty: ( value: boolean ) => void;
+    setGraphDirty: ( value: boolean ) => void;
+    setDocumentDirty: ( value: boolean ) => void;
     updateDocument: () => void;
 
     setThemeMode: (themeMode: ThemeMode) => void;
@@ -78,7 +87,10 @@ const useStore = create<GraphEditorData>((set, get) => ({
 
     nodes: [],
     edges: [],
-    documentUri: "",
+    stateDirty: false,
+    graphDirty: false,
+    documentDirty: false,
+    version: 0,
 
     themeMode: ThemeMode.Light,
     selectedNodes: [],
@@ -91,12 +103,28 @@ const useStore = create<GraphEditorData>((set, get) => ({
         set({
             nodes: applyNodeChanges(changes, get().nodes)
         });
+
+        const needUpdateDocument = changes.find((change) => {
+            return change.type == "add" || change.type == "remove";
+        });
+
+        if( typeof needUpdateDocument !== "undefined" ) {
+            get().setDocumentDirty( true );
+        }
     },
 
     onEdgesChange: (changes: EdgeChange[]) => {
         set({
             edges: applyEdgeChanges(changes, get().edges)
         });
+
+        const needUpdateDocument = changes.find((change) => {
+            return change.type == "add" || change.type == "remove";
+        });
+
+        if( typeof needUpdateDocument !== "undefined" ) {
+            get().setDocumentDirty( true );
+        }
     },
 
     onConnect: (connection: Connection) => {
@@ -111,6 +139,8 @@ const useStore = create<GraphEditorData>((set, get) => ({
                 get().edges
             )
         });
+
+        get().setDocumentDirty( true );
     },
 
     setFunctionNodeName: (id: string, name: string) => {
@@ -161,8 +191,9 @@ const useStore = create<GraphEditorData>((set, get) => ({
     createNode: ( nodeTemplateJson: string, pos: XYPosition ) => {
         const nodeTemplateData = JSON.parse( nodeTemplateJson );
 
-        if( typeof nodeTemplateData != 'object' )
+        if( typeof nodeTemplateData != 'object' ) {
             return;
+        }
 
         const newNode = {
             id: uuidv1(),
@@ -171,55 +202,84 @@ const useStore = create<GraphEditorData>((set, get) => ({
             position: pos,
         };
 
-        console.debug( "created node at x: " + pos.x + " y: " + pos.y );
+        // console.debug( "created node at x: " + pos.x + " y: " + pos.y + ":\n" + JSON.stringify(newNode, null, '\t' ) );
 
         set({
             nodes: get().nodes.concat( newNode )
         });
 
-        get().updateDocument();
+        get().setDocumentDirty( true );
     },
 
-    updateGraph: (document: string) => {
+    updateGraph: (content: string, version: number) => {
 
-        console.debug("OnUpdateGraph");
-
-        if( document.length == 0 )
+        if( version <= get().version ) {
+            console.debug( "AlchemyClient: update graph failed with version: " + version + "\n" + content );
             return;
+        }
 
-        const graphData = JSON.parse( document );
-        
-        if( typeof graphData !== 'object' )
-            return;
+        if( content.length == 0 ) {
+            set({
+                nodes: [],
+                edges: [],
+                version: version,
+                graphDirty: true,
+            });
+        } else {
+            const graphData = JSON.parse( content );
+            set({
+                nodes: graphData.nodes,
+                edges: graphData.edges,
+                version: version,
+                graphDirty: true,
+            });
+        }
 
+        console.debug("AlchemyClient: update graph with version: " + version + "\n", content );
+    },
+
+    setStateDirty: ( value: boolean ) => {
         set({
-            nodes: typeof graphData.nodes !== 'undefined' ? graphData.nodes : [],
-            edges: typeof graphData.edges !== 'undefined' ? graphData.edges : []
+            stateDirty: value
         });
+    },
 
-        // const doc = {
-        //     nodes: get().nodes.map(({id, type, data, position}) => ({id, type, data, position})),
-        //     edges: get().edges.map(({id, source, sourceHandle, target, targetHandle}) => ({id, source, sourceHandle, target, targetHandle})),
-        // };
+    setGraphDirty: ( value: boolean ) => {
+        set({
+            graphDirty: value
+        })
+    },
 
-        // const docJson = JSON.stringify( doc, null, '\t' );
+    setDocumentDirty: ( value: boolean ) => {
+        set({
+            documentDirty: get().documentDirty || value
+        });
     },
 
     updateDocument: () => {
+
+        const newVersion = get().version + 1;
 
         const doc = {
             nodes: get().nodes.map(({id, type, data, position}) => ({id, type, data, position})),
             edges: get().edges.map(({id, source, sourceHandle, target, targetHandle}) => ({id, source, sourceHandle, target, targetHandle})),
         };
 
-        const docJson = JSON.stringify( doc, null, '\t' );
+        const content = JSON.stringify( doc );
+
+        set({
+            version: newVersion
+        })
+
+        set({
+            documentDirty: false
+        });
 
         vscode.postMessage({
             command: "alchemy.update_document",
-            data: docJson
+            data: content,
+            version: newVersion
         });
-
-        console.info( "updateDocument: " );
     },
 
     setThemeMode: (themeMode: ThemeMode) => {

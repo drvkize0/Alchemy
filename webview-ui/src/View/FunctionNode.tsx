@@ -53,22 +53,27 @@ function FunctionNode( {id, selected, data}: NodeProps<FunctionNodeData> ) {
     const selectedStyle = { border: "2px solid red" };
     const unselectedStyle = { border: "2px solid silver" };
 
-    const onDoubleClick = () => {
-
-        const message = {
-            command: "alchemy.open_node_template",
-            data: data.templateUri
-        };
-
-        vscode.postMessage( message );
-        console.debug( "alchemy.open_node_template: ", data.templateUri );
-    };
+    // const onKeyUp = ( event: React.KeyboardEvent ) => {
+    //     if( event.key == "E" ) {
+    //         if( typeof data.templateUri === "string" ) {
+    //             const message = {
+    //                 command: "alchemy.open_node_template",
+    //                 data: data.templateUri
+    //             };
+        
+    //             console.debug( "alchemy.open_node_template: ", data.templateUri );
+    //             vscode.postMessage( message );
+    //         }
+    //         else {
+    //             console.debug( "Alchemy: invalid note template uri " + typeof data.templateUri );
+    //         }
+    //     }
+    // };
 
     return (
         <div className="function-node"
             ref={nodeRef}
             style={selected ? selectedStyle : unselectedStyle}
-            onDoubleClick={onDoubleClick}
         >
             <div className="function-node__header">
                 <input className="function-node__header__name"

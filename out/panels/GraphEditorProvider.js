@@ -16,7 +16,6 @@ const getNonce_1 = require("../utilities/getNonce");
 const fs_1 = require("fs");
 class GraphEditorProvider {
     constructor(context) {
-        this.disposables = [];
         this.extensionUri = context.extensionUri;
     }
     static register(context) {
@@ -43,29 +42,26 @@ class GraphEditorProvider {
             </html>
         `;
     }
-    dispose() {
-        while (this.disposables.length) {
-            const disposable = this.disposables.pop();
-            if (disposable) {
-                disposable.dispose();
-            }
-        }
-    }
     resolveCustomTextEditor(document, webviewPanel, token) {
         return __awaiter(this, void 0, void 0, function* () {
             webviewPanel.webview.options = {
                 enableScripts: true
             };
             webviewPanel.webview.html = this.getWebviewContent(webviewPanel.webview);
-            this.bindWebviewMessageListener(webviewPanel.webview, document);
-            this.disposables.push(vscode.workspace.onDidChangeTextDocument(e => {
+            let clientState = {
+                clientVersion: undefined
+            };
+            console.debug("Alchemy: resolveCustomTextEditor new client state");
+            this.bindWebviewMessageListener(webviewPanel.webview, document, clientState);
+            const onDidChangeTextDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
                 if (e.document.uri.toString() === document.uri.toString()) {
-                    console.debug("onDidChangeTextDocument updateGraph");
-                    this.updateGraph(webviewPanel.webview, document);
+                    this.updateGraph(webviewPanel.webview, document, clientState);
                 }
-            }));
-            webviewPanel.onDidDispose(() => this.dispose(), null, this.disposables);
-            this.updateGraph(webviewPanel.webview, document);
+            });
+            webviewPanel.onDidDispose(() => {
+                onDidChangeTextDocumentSubscription.dispose();
+            });
+            //this.updateGraph( webviewPanel.webview, document, clientState );
         });
     }
     static createNewGraph() {
@@ -74,72 +70,100 @@ class GraphEditorProvider {
             vscode.window.showErrorMessage("Creating new graph requires opening a workspace");
             return;
         }
-        const uri = vscode.Uri.joinPath(workspaceFolders[0].uri, `UntitledGraph-${GraphEditorProvider.newFileId++}` + ".acg")
+        const uri = vscode.Uri.joinPath(workspaceFolders[0].uri, `UntitledGraph-${GraphEditorProvider.newFileId++}.acg`)
             .with({ scheme: 'untitled' });
         vscode.commands.executeCommand('vscode.openWith', uri, GraphEditorProvider.viewType);
     }
-    updateGraph(webview, document) {
-        const msg = {
-            command: "alchemy.update_graph",
-            data: document.getText()
-        };
-        webview.postMessage(msg);
-    }
-    onOpenNodeTemplate(templateUri) {
+    openNodeTemplate(uri) {
+        const templateUri = vscode.Uri.from({ scheme: "file", path: uri });
         vscode.commands.executeCommand("vscode.openWith", templateUri, "default");
     }
-    bindWebviewMessageListener(webview, document) {
+    readNodeTemplate(templateUri) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve, reject) => {
+                if (typeof vscode.workspace.workspaceFolders === 'undefined') {
+                    return reject();
+                }
+                const workspaceFolderUri = vscode.Uri.parse(vscode.workspace.workspaceFolders[0].uri.path);
+                const strippedTemplateUri = vscode.Uri.parse(templateUri).with({ scheme: undefined, authority: undefined });
+                const finalTemplateUri = vscode.Uri.joinPath(workspaceFolderUri, strippedTemplateUri.path);
+                fs_1.promises.readFile(finalTemplateUri.fsPath).then((buffer) => {
+                    const template = JSON.parse(buffer.toString());
+                    template.templateUri = finalTemplateUri.fsPath;
+                    const retTemplate = JSON.stringify(template);
+                    return resolve(retTemplate);
+                }).catch(() => {
+                    console.error("Alchemy: failed to open " + finalTemplateUri.fsPath);
+                });
+            });
+        });
+    }
+    createNode(webview, templateUri, pos) {
+        this.readNodeTemplate(templateUri).then((template) => {
+            if (typeof template === "string") {
+                const message = {
+                    command: "alchemy.create_node",
+                    data: {
+                        template: template,
+                        pos: pos
+                    }
+                };
+                webview.postMessage(message);
+            }
+        }).catch(() => {
+            console.error("Alchemy: failed read template: " + templateUri);
+        });
+    }
+    updateGraph(webview, document, clientState) {
+        if (typeof clientState.clientVersion !== "undefined" && document.version <= clientState.clientVersion) {
+            console.debug("Alchemy: updateGraph failed with clientVersion: " + clientState.clientVersion + " document version: " + document.version);
+            return;
+        }
+        const msg = {
+            command: "alchemy.update_graph",
+            data: document.getText(),
+            version: document.version
+        };
+        webview.postMessage(msg);
+        console.debug("Alchemy: updateGraph with clientVersion: " + clientState.clientVersion + " document version: " + document.version);
+    }
+    onUpdateDocument(document, content, version, clientState) {
+        const edit = new vscode.WorkspaceEdit();
+        clientState.clientVersion = version;
+        if (version <= document.version) {
+            console.debug("Alchemy: update document failed with version: " + version + "\n" + content);
+            return;
+        }
+        edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), content);
+        console.debug("Alchemy: updateDocument with version: " + version + "\n" + content);
+        vscode.workspace.applyEdit(edit);
+    }
+    onQueryDocument(webview, document, version, clientState) {
+        clientState.clientVersion = version;
+        this.updateGraph(webview, document, clientState);
+    }
+    bindWebviewMessageListener(webview, document, clientState) {
         webview.onDidReceiveMessage((message) => {
             const command = message.command;
             const data = message.data;
+            const version = message.version;
             switch (command) {
                 case "alchemy.open_node_template":
-                    {
-                        if (typeof data === 'string') {
-                            const templatUri = vscode.Uri.from({ scheme: "file", path: data });
-                            console.debug("on_open_node_template, templatUri: " + templatUri.fsPath);
-                            this.onOpenNodeTemplate(templatUri);
-                        }
-                        else {
-                            vscode.window.showErrorMessage("Alchemy: Invalid command: " + typeof message + typeof data);
-                        }
-                    }
+                    console.debug("Alchemy: data.templateUri = " + data);
+                    this.openNodeTemplate(data);
                     return;
                 case "alchemy.query_node_template":
-                    {
-                        if (typeof vscode.workspace.workspaceFolders === 'undefined') {
-                            return;
-                        }
-                        const workspaceFolderUri = vscode.Uri.parse(vscode.workspace.workspaceFolders[0].uri.path);
-                        const strippedTemplateUri = vscode.Uri.parse(data.templateUri).with({ scheme: undefined, authority: undefined });
-                        const templateUri = vscode.Uri.joinPath(workspaceFolderUri, strippedTemplateUri.path);
-                        const content = fs_1.promises.readFile(templateUri.fsPath).then((buffer) => {
-                            const template = JSON.parse(buffer.toString());
-                            template.templateUri = templateUri.fsPath;
-                            const message = {
-                                command: "alchemy.create_node",
-                                data: {
-                                    template: JSON.stringify(template, null, '\t'),
-                                    pos: data.pos
-                                }
-                            };
-                            webview.postMessage(message);
-                            console.debug("alchemy.query_node_template");
-                        });
-                    }
+                    this.createNode(webview, data.templateUri, data.pos);
                     break;
                 case "alchemy.update_document":
-                    {
-                        const edit = new vscode.WorkspaceEdit();
-                        edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), data);
-                        vscode.workspace.applyEdit(edit);
-                    }
+                    this.onUpdateDocument(document, data, version, clientState);
                     break;
                 case "alchemy.query_document":
-                    this.updateGraph(webview, document);
+                    console.debug("Alchemy: onQueryDocument with client version: version: " + version + " document version: " + document.version);
+                    this.onQueryDocument(webview, document, version, clientState);
                     break;
             }
-        }, undefined, this.disposables);
+        });
     }
 }
 exports.GraphEditorProvider = GraphEditorProvider;

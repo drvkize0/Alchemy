@@ -14,7 +14,8 @@ import {
     useOnSelectionChange,
     OnSelectionChangeParams,
     SelectionMode,
-    Viewport
+    Viewport,
+    useOnViewportChange
 } from 'reactflow';
 import { vscode } from '../utilities/vscode';
 import { ThemeMode, GraphEditorData, useStore } from '../Data/GraphEditorData';
@@ -22,21 +23,32 @@ import { FunctionNode } from './FunctionNode';
 
 import 'reactflow/dist/style.css';
 import './GraphEditorView.css';
+import { FunctionNodeData } from '../Data/FunctionNodeData';
 
 const selector = (data: GraphEditorData) => ({
-    themeMode: data.themeMode,
+    
     nodes: data.nodes,
     edges: data.edges,
+    verison: data.version,
+    stateDirty: data.stateDirty,
+    graphDirty: data.graphDirty,
+    documentDirty: data.documentDirty,
+
+    themeMode: data.themeMode,
     selectedNodes: data.selectedNodes,
     selectedEdges: data.selectedEdges,
     viewport: data.viewport,
 
+    debug: data.debug,
+
     onNodesChange: data.onNodesChange,
     onEdgesChange: data.onEdgesChange,
     onConnect: data.onConnect,
-    setDebug: data.setDebug,
     updateGraph: data.updateGraph,
     createNode: data.createNode,
+    setStateDirty: data.setStateDirty,
+    setGraphDirty: data.setGraphDirty,
+    setDocumentDirty: data.setDocumentDirty,
     updateDocument: data.updateDocument,
 
     setThemeMode: data.setThemeMode,
@@ -45,7 +57,7 @@ const selector = (data: GraphEditorData) => ({
     setSelectedEdges: data.setSelectedEdges,
     setViewport: data.setViewport,
 
-    debug: data.debug,
+    setDebug: data.setDebug,
 });
 
 const nodeTypes = {
@@ -60,6 +72,10 @@ export function GraphView() {
     const {
         nodes,
         edges,
+        verison,
+        stateDirty,
+        graphDirty,
+        documentDirty,
         themeMode,
         selectedNodes,
         selectedEdges,
@@ -70,6 +86,9 @@ export function GraphView() {
         onConnect,
         updateGraph,
         createNode,
+        setStateDirty,
+        setGraphDirty,
+        setDocumentDirty,
         updateDocument,
         setThemeMode,
         setEdgeHightlighted,
@@ -87,14 +106,15 @@ export function GraphView() {
     const onDidReceivedMessage = (vscodeMessage: any) => {
         const command = vscodeMessage.data.command;
         const data = vscodeMessage.data.data;
+        const version = vscodeMessage.data.version;
         setDebug(command);
 
         switch (command) {
             case "alchemy.update_graph":
-                updateGraph(data);
+                updateGraph(data, version);
                 return;
             case "alchemy.create_node":
-                createNode(data.template, data.pos);
+                createNode(data.template, data.pos);;
                 return;
         }
     }
@@ -104,32 +124,88 @@ export function GraphView() {
         viewport: Viewport
     };
 
-    const setState = () => {
-        const viewport = reactFlow.getViewport();
-        vscode.setState({
-            viewport: reactFlow.getViewport()
-        });
-        console.debug("viewport.zoom = " + viewport.zoom);
+    const fitViewOptions: FitViewOptions = {
+        duration: 200,
+        minZoom: 0.5,
+        maxZoom: 2.0,
+        nodes: selectedNodes.length > 0 ? selectedNodes : nodes
     }
 
     useEffect(() => {
         window.addEventListener("message", onDidReceivedMessage);
 
-        const state = vscode.getState() as stateType;
-        if (state) {
-
-            vscode.postMessage({
-                command: "alchemy.query_document",
-                data: undefined
-            });
-
-            setViewport(state.viewport);
-        }
-
         return () => {
             window.removeEventListener('message', onDidReceivedMessage);
         };
     }, []);
+
+    const onInit = () => {
+        vscode.postMessage({
+            command: "alchemy.query_document",
+            data: undefined,
+            version: verison
+        });
+    }
+
+    useEffect(() => {
+        if(documentDirty)
+            updateDocument();
+    }, [documentDirty])
+
+    useLayoutEffect(() => {
+        if( stateDirty ) {
+            const state = {
+                viewport: reactFlow.getViewport()
+            };
+
+            vscode.setState( state );
+            console.debug( "AlchemyClient: setState:\n", JSON.stringify( state, null, '\t' ) );
+        }
+        setStateDirty( false );
+    }, [stateDirty])
+
+    // useEffect(() => {
+    //     if(typeof viewport != "undefined" ) {
+    //         reactFlow.setViewport(viewport);
+    //         setStateDirty(true);
+    //     }
+    // }, [viewport])
+
+    useEffect(() => {
+        if( graphDirty ) {
+            console.debug( "AlchemyClient: graph dirty: " + graphDirty + " state:\n" + JSON.stringify( vscode.getState(), null, '\t' ) );
+            const state = vscode.getState() as stateType;
+            if( state && state.viewport ) {
+                console.debug( "AlchemyClient: set viewport: " + JSON.stringify( state.viewport, null, '\t' ) );
+                
+                reactFlow.setViewport(state.viewport);
+                vscode.setState({
+                    viewport: state.viewport
+                });
+            } else {
+                if( nodes.length > 0 ) {
+                    reactFlow.fitView( fitViewOptions );
+                    console.debug( "AlchemyClient: fitView: " + JSON.stringify( fitViewOptions, null, '\t' ) );
+                    // setStateDirty( true );
+                } else {
+                    const defaultViewport = {
+                        x: 0,
+                        y: 0,
+                        zoom: 2
+                    }
+                    console.debug( "AlchemyClient: graph dirty: set default viewport: " + JSON.stringify( defaultViewport, null, '\t' ) );
+
+                    setViewport( defaultViewport );
+                    vscode.setState({
+                        viewport: defaultViewport
+                    });
+                }
+            }
+        }
+        
+        setGraphDirty(false);
+
+    }, [graphDirty])
 
     // highlight selected nodes and edges
     useEffect(() => {
@@ -152,44 +228,12 @@ export function GraphView() {
         }
     }, [selectedEdges])
 
-    useLayoutEffect(() => {
-        if (typeof viewport !== 'undefined')
-            reactFlow.setViewport(viewport);
-    }, [viewport])
-
     const onChange = useCallback((selectedChange: OnSelectionChangeParams) => {
         setSelectedNodes(selectedChange.nodes);
         setSelectedEdges(selectedChange.edges);
     }, []);
 
     useOnSelectionChange({ onChange });
-
-    // drop handler for creating new node
-    // const getChildNodePosition = (event: MouseEvent, parentNode?: Node) => {
-    //     const { domNode } = store.getState();
-
-    //     if (
-    //         !domNode ||
-    //         // we need to check if these properites exist, because when a node is not initialized yet,
-    //         // it doesn't have a positionAbsolute nor a width or height
-    //         !parentNode?.positionAbsolute ||
-    //         !parentNode?.width ||
-    //         !parentNode?.height
-    //     ) {
-    //         return;
-    //     }
-
-    //     const panePosition = screenToFlowPosition({
-    //         x: event.clientX,
-    //         y: event.clientY,
-    //     });
-
-    //     // we are calculating with positionAbsolute here because child nodes are positioned relative to their parent
-    //     return {
-    //         x: panePosition.x - parentNode.positionAbsolute.x + parentNode.width / 2,
-    //         y: panePosition.y - parentNode.positionAbsolute.y + parentNode.height / 2,
-    //     };
-    // };
 
     const onDragOver = (event: React.DragEvent) => {
         if (event.button == 0) {
@@ -219,29 +263,51 @@ export function GraphView() {
         setDebug(JSON.stringify(message, null, '\t'));
     }
 
+    const onNodeDoubleClick = (event: React.MouseEvent, node: Node<FunctionNodeData>) => {
+
+        const data = node.data;
+
+        if( typeof data.templateUri === "string" ) {
+
+            const message = {
+                command: "alchemy.open_node_template",
+                data: data.templateUri
+            };
+            
+            console.debug( "alchemy.open_node_template: ", data.templateUri );
+            vscode.postMessage( message );
+        } else {
+            console.debug( "AlchemyClient: invalid note template uri " + typeof data.templateUri );
+        }
+    };
+
     // fitview to selected nodes or all nodes
     // hotkey: F
-    const fitViewOptions: FitViewOptions = {
-        duration: 200,
-        nodes: selectedNodes.length > 0 ? selectedNodes : nodes
-    }
     const fitViewKeyPressed = useKeyPress("f");
     useEffect(() => {
-        reactFlow.fitView(fitViewOptions);
+        if(fitViewKeyPressed) {
+            reactFlow.fitView( fitViewOptions );
+            // setStateDirty( true );
+        }
     }, [fitViewKeyPressed])
+
+    const isFitview = (): boolean => {
+        return typeof vscode.getState() === "undefined";
+    }
 
     return (
         <ReactFlow
             nodeTypes={nodeTypes}
             nodes={nodes}
             edges={edges}
+            onInit={onInit}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onNodesDelete={updateDocument}
-            onNodeDragStop={updateDocument}
+            onNodeDragStop={()=>{setDocumentDirty(true);}}
+            onNodeDoubleClick={onNodeDoubleClick}
             onConnect={onConnect}
-            onEdgesDelete={updateDocument}
-            onMoveEnd={setState}
+            onMoveEnd={()=>{setStateDirty(true)}}
+            nodeDragThreshold={5}
 
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -254,6 +320,12 @@ export function GraphView() {
 
             onDrop={onDrop}
             onDragOver={onDragOver}
+
+            nodesFocusable={false}
+            edgesFocusable={false}
+            defaultViewport={{ x: 0, y: 0, zoom: 2 }}
+            fitView={isFitview()}
+            fitViewOptions={fitViewOptions}
         >
             <Panel position="bottom-center">
                 {debug}
