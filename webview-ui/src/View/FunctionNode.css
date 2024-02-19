@@ -13,6 +13,10 @@
     /* background-color: plum; */
 }
 
+.parameter-pin__text {
+    white-space: nowrap;
+}
+
 .parameter-pin .react-flow__handle {
     border: 0;
     border-radius: 0;
@@ -30,6 +34,10 @@
     position: relative;
     font-size: 1ch;
     /* background-color: plum; */
+}
+
+.return-value-pin__text {
+    white-space: nowrap;
 }
 
 .return-value-pin .react-flow__handle {
